@@ -4,13 +4,16 @@ Use Python 3.11 from the project root. No setup command or external data is need
 The executable argv is recorded in .pointwise-runtime.json; run-manifest.json
 also lists the focused regression groups without replacing full discovery.
 
+    python3.11 -B run_checks.py             # full V1 + hierarchy verification chain
     python3.11 -B -m unittest discover -s tests -v
     python3.11 -B -m gridledger.delivery.service demo --example examples/two_cells.json
+    python3.11 -B hierarchy_cases.py v1|verify|demo
 
 The sample contains two unit cells, four endpoint records and all eight directed
 face rates. The left account is change -2, outflow 2, residual 0; the right account
 is change 1, outflow -1, residual 0. The six exterior face uses sum to outflow 1.
 No flow is synthesized by the demo; the finite sample explicitly includes zeros.
+The hierarchy demo prints a real asynchronous coarse/fine report export.
 
 A minimal in-memory object-input session:
 
@@ -39,6 +42,36 @@ For persistent work, pass a project-owned database path to LedgerService.
 Keep returned grid, observation, plan and result IDs. Reopen that same path
 and audit a saved plan ID or read/export a saved result ID. Reading a result
 does not load current observations or run the balance algorithm.
+
+A two-level session registers a fixed binding once, then audits it like a plan:
+
+    from fractions import Fraction as F
+    from gridledger.delivery.service import LedgerService
+    from tests.test_balance import uniform_records
+    from gridledger.archive.grid_store import load_grid_revision
+
+    with LedgerService() as ledger:
+        coarse = ledger.put_grid("coarse", (2, 1))
+        fine = ledger.put_grid("fine", (2, 2), origin=(1, 0),
+                               spacing=(F(1, 2), F(1, 2)))
+        def put(g, prefix, rates):
+            m, f = uniform_records(load_grid_revision(ledger.connection, g),
+                                   prefix=prefix, rates=rates)
+            return ledger.put_observations(g, m, f)
+        cr = put(coarse, "C", {((0, 0), "east"): 8, ((1, 0), "west"): -8})
+        fr = put(fine, "F", {((0, 0), "west"): -2, ((0, 1), "west"): -3})
+        h = ledger.register_hierarchy((coarse, cr), [(fine, fr)])
+        rid = ledger.audit_hierarchy(h, 0, 1)
+        report = ledger.read_result(rid)
+        assert report["kind"] == "hierarchy"
+        assert report["boundary"]["total_residual"] == 0
+        assert len(report["anomalous_cells"]) == 3  # global zero hides nothing
+
+The covered coarse cell leaves the active account; the surviving coarse
+neighbour's interface is replaced by minus the opposing fine totals, with the
+original, replacement and per-segment sources kept in report["corrections"].
+Registrations and results are fixed: correcting a source creates a new
+revision, so register a new hierarchy to audit it. See docs/hierarchy.md.
 
 To correct an observation, import the same logical key with a new source ID.
 The new revision inherits all other records. An explicitly chosen older base

@@ -15,7 +15,13 @@ def ordered_result_payload(snapshot):
     return result
 
 def write_result_json(snapshot, target):
-    text = canonical_json(ordered_result_payload(snapshot)) + "\n"
+    # Hierarchy snapshots are stored already sorted by their contract order;
+    # V1 snapshots keep their original export-time ordering. Both go through
+    # the same exact codec.
+    if snapshot.get("kind") == "hierarchy":
+        text = canonical_json(copy_result_snapshot(snapshot)) + "\n"
+    else:
+        text = canonical_json(ordered_result_payload(snapshot)) + "\n"
     written = target.write(text)
     if written is not None and written != len(text):
         raise OSError("short result export write")

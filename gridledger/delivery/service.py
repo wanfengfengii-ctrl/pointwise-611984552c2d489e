@@ -3,10 +3,14 @@ from gridledger.archive.grid_store import save_grid_revision, load_grid_revision
 from gridledger.archive.observation_store import (
     load_source_record, save_observation_revision, load_observation_revision)
 from gridledger.archive.plan_store import save_plan, load_plan, publish_result, load_result_rows
+from gridledger.archive.hierarchy_store import (
+    save_hierarchy, load_hierarchy, publish_hierarchy_result, load_hierarchy_result)
 from gridledger.observations.revisions import build_observation_revision
 from gridledger.windows.compiler import compile_window_plan
 from gridledger.windows.model import WindowPlan
 from gridledger.balances.execution import execute_balance
+from gridledger.hierarchy.registration import build_hierarchy_binding
+from gridledger.hierarchy.execution import execute_hierarchy
 from gridledger.delivery.results import build_result_snapshot, restore_result_snapshot
 from gridledger.delivery.export import write_result_json
 
@@ -59,10 +63,22 @@ class LedgerService:
         return publish_result(self.connection, build_result_snapshot(fixed, result))
 
     def read_result(self, result_id):
+        snapshot = load_hierarchy_result(self.connection, result_id)
+        if snapshot is not None:
+            return snapshot
         return restore_result_snapshot(load_result_rows(self.connection, result_id))
 
     def export_result(self, result_id, target):
         write_result_json(self.read_result(result_id), target)
+
+    def register_hierarchy(self, coarse, patches):
+        binding = build_hierarchy_binding(self.connection, coarse, patches)
+        return save_hierarchy(self.connection, binding)
+
+    def audit_hierarchy(self, h, a, b):
+        binding = load_hierarchy(self.connection, h)
+        snapshot = execute_hierarchy(self.connection, binding, a, b)
+        return publish_hierarchy_result(self.connection, snapshot)
 
 def main():
     import argparse

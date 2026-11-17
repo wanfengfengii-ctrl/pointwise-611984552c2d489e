@@ -20,6 +20,17 @@ TABLES = {
         body TEXT NOT NULL, PRIMARY KEY(result_id, ordinal)""",
     "result_sources": """result_id INTEGER NOT NULL REFERENCES results(id), ordinal INTEGER NOT NULL,
         body TEXT NOT NULL, PRIMARY KEY(result_id, ordinal)""",
+    "hierarchies": "id INTEGER PRIMARY KEY, body TEXT NOT NULL",
+    "hierarchy_results": """id INTEGER PRIMARY KEY,
+        hierarchy_id INTEGER NOT NULL REFERENCES hierarchies(id), header TEXT NOT NULL""",
+    "hierarchy_result_cells": """result_id INTEGER NOT NULL REFERENCES hierarchy_results(id),
+        ordinal INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY(result_id, ordinal)""",
+    "hierarchy_result_faces": """result_id INTEGER NOT NULL REFERENCES hierarchy_results(id),
+        ordinal INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY(result_id, ordinal)""",
+    "hierarchy_result_sources": """result_id INTEGER NOT NULL REFERENCES hierarchy_results(id),
+        ordinal INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY(result_id, ordinal)""",
+    "hierarchy_result_corrections": """result_id INTEGER NOT NULL REFERENCES hierarchy_results(id),
+        ordinal INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY(result_id, ordinal)""",
 }
 
 @contextmanager

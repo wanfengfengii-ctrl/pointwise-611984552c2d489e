@@ -110,3 +110,31 @@ being checked.
 
 See RUNBOOK.md for a small object-input session and docs/invariants.md for
 the archive-to-report invariants.
+
+## Two-level hierarchies (V2)
+
+A data processor may also register a fixed coarse/fine binding and publish one
+joint report for the same physical region. The V1 API and reports above are
+unchanged; the extension adds two calls on LedgerService:
+
+* register_hierarchy(coarse, patches) returns a positive integer hierarchy ID.
+  coarse is a (grid_id, observation_id) pair; patches is a nonempty list of
+  such pairs (at most 8). Each fine grid has shape (2,2), exactly half the
+  coarse spacing, and must exactly cover one complete coarse cell; the covered
+  cell is inferred from exact geometry. The binding is stored atomically and
+  never changes afterwards.
+* audit_hierarchy(h, a, b) reads the registered revisions (never current
+  heads), validates every registered grid with the V1 rules plus segmentwise
+  opposition across adjacent patches, and returns a published result ID.
+
+Covered coarse cells are validated but leave the active account. An active
+coarse face against a refined cell is replaced by minus the sum of the two
+opposite fine outward totals; original, correction and per-segment sources are
+kept in the report. Local anomalies are published even when their global sum
+is zero. read_result and export_result serve hierarchy results through the
+same exact codec. The public contract, worked inputs and an independent
+checker live in hierarchy_cases.py; docs/hierarchy.md is the delivery note.
+
+    python3.11 -B hierarchy_cases.py v1       # V1 input checks
+    python3.11 -B hierarchy_cases.py verify   # hierarchy business checks
+    python3.11 -B hierarchy_cases.py demo     # real asynchronous report export

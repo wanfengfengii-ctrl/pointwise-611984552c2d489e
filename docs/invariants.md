@@ -37,3 +37,32 @@ Schema initialization checks required columns, keys, relationships and version
 inside its own transaction. Compatible user tables, indexes and triggers are
 retained. Initialization never clears observations, recreates sample data or
 advances business revisions. Physical grid and observation IDs are archive-local.
+
+## Two-level hierarchies (V2)
+
+A hierarchy registration freezes one coarse (grid, observation revision) pair
+and an ordered set of fine (grid, observation revision, covered cell) triples
+in one atomic row. Fine grids are native grid revisions with shape (2,2) and
+exactly half the coarse spacing; the covered cell is inferred from exact
+origin alignment. Registrations are append-only and survive reopening.
+
+The joint audit reads only the registered revisions. Every registered grid,
+covered coarse cells included, must independently satisfy the V1 endpoint,
+coverage and same-level opposition rules; fine faces shared by two patches
+must also oppose on every common time interval. Coarse-versus-fine
+disagreement is input, not an error.
+
+Covered coarse cells leave the active account after validation; their evidence
+stays in the delivered sources. An active coarse face toward a refined cell
+keeps its original integral and is corrected to minus the sum of the two
+opposite fine outward integrals; each correction is delivered with per-segment
+original, replacement, delta and the owning source IDs. All active internal
+contributions cancel, refined exterior faces replace their covered coarse
+counterparts on the boundary, and the global identity
+total_residual = total_change + exterior outflow is verified before commit.
+
+Hierarchy results publish root plus ordinal child rows in one transaction and
+share the result ID space with V1 results, so one read/export path serves
+both. Reads decode stored rows only; corrections, container edits and
+reopening cannot move a fixed binding or result. See docs/hierarchy.md for
+the full delivery note.

@@ -3,6 +3,7 @@ import json
 from gridledger.observations.model import MassRecord, FluxRecord
 from gridledger.windows.model import WindowPlan, SourceContribution
 from gridledger.archive.schema import archive_transaction
+from gridledger.archive.hierarchy_store import allocate_result_id
 from gridledger.delivery.codec import canonical_json, decode_value
 
 def save_plan(connection, plan):
@@ -42,9 +43,9 @@ def publish_result(connection, snapshot):
     header["boundary"] = boundary
     header["row_counts"] = [len(cells), len(faces), len(sources)]
     with archive_transaction(connection):
-        cursor = connection.execute("INSERT INTO results(plan_id,header) VALUES (?,?)",
-                                    (plan.id, canonical_json(header)))
-        result_id = cursor.lastrowid
+        result_id = allocate_result_id(connection)
+        connection.execute("INSERT INTO results(id,plan_id,header) VALUES (?,?,?)",
+                           (result_id, plan.id, canonical_json(header)))
         for table, records in (("result_cells", cells), ("result_faces", faces), ("result_sources", sources)):
             for ordinal, record in enumerate(records):
                 connection.execute("INSERT INTO " + table + "(result_id,ordinal,body) VALUES (?,?,?)",
